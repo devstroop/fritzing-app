@@ -19,9 +19,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: ${{ env.ZIG_VERSION }}
+        run: |
+          curl -fsSL "https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-linux-x86_64-${{ env.ZIG_VERSION }}.tar.xz" | tar xJ
+          echo "$(pwd)/zig-linux-x86_64-${{ env.ZIG_VERSION }}" >> $GITHUB_PATH
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -70,9 +70,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: ${{ env.ZIG_VERSION }}
+        run: |
+          curl -fsSL "https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-macos-aarch64-${{ env.ZIG_VERSION }}.tar.xz" | tar xJ
+          echo "$(pwd)/zig-macos-aarch64-${{ env.ZIG_VERSION }}" >> $GITHUB_PATH
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
