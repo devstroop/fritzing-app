@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [develop, mod, master]
+    branches: [mod]
   pull_request:
-    branches: [develop, master]
+    branches: [mod]
 
 env:
   ZIG_VERSION: 0.15.0
