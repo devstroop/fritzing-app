@@ -32,12 +32,11 @@ jobs:
           cache: true
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.8.*"
-          host: linux
-          arch: gcc_64
-          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport
+        run: |
+          pip install aqtinstall
+          aqt install-qt linux desktop 6.8.3 gcc_64 --outputdir ${{ runner.temp }}/Qt --modules qtsvg qtserialport
+          echo "${{ runner.temp }}/Qt/6.8.3/gcc_64/bin" >> $GITHUB_PATH
+          echo "QT_DIR=${{ runner.temp }}/Qt/6.8.3/gcc_64" >> $GITHUB_ENV
 
       - name: Install system dependencies
         run: |
@@ -94,12 +93,11 @@ jobs:
           cache: true
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.8.*"
-          host: mac
-          arch: clang_64
-          modules: qtcharts qt5compat qtimageformats qtserialport
+        run: |
+          pip install aqtinstall
+          aqt install-qt mac desktop 6.8.3 clang_64 --outputdir ${{ runner.temp }}/Qt --modules qtsvg qtserialport
+          echo "${{ runner.temp }}/Qt/6.8.3/clang_64/bin" >> $GITHUB_PATH
+          echo "QT_DIR=${{ runner.temp }}/Qt/6.8.3/clang_64" >> $GITHUB_ENV
 
       - name: Install dependencies (Homebrew)
         run: |
@@ -157,12 +155,12 @@ jobs:
           cache: true
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.8.*"
-          host: windows
-          arch: win64_msvc2022_64
-          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport
+        shell: pwsh
+        run: |
+          pip install aqtinstall
+          aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt --modules qtsvg qtserialport
+          echo "${{ runner.temp }}\Qt\6.8.3\win64_msvc2022_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          echo "QT_DIR=${{ runner.temp }}\Qt\6.8.3\win64_msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Cache vcpkg packages
         uses: actions/cache@v4
