@@ -3,25 +3,49 @@ name: CI
 on:
   push:
     branches: [mod]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
+      - ".gitignore"
+      - ".editorconfig"
   pull_request:
     branches: [mod]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
+      - ".gitignore"
+      - ".editorconfig"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  ZIG_VERSION: 0.15.0
+  ZIG_VERSION: 0.15.2
 
 jobs:
   build-linux:
     name: Build (Linux)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # needed for git describe/versioning
 
-      - name: Install Zig
-        run: |
-          curl -fsSL "https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-linux-x86_64-${{ env.ZIG_VERSION }}.tar.xz" | tar xJ
-          echo "$(pwd)/zig-linux-x86_64-${{ env.ZIG_VERSION }}" >> $GITHUB_PATH
+      - name: Cache Zig compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/setup-zig
+          key: zig-${{ env.ZIG_VERSION }}-${{ runner.os }}
+
+      - name: Setup Zig ${{ env.ZIG_VERSION }}
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache: true
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -29,7 +53,7 @@ jobs:
           version: "6.8.*"
           host: linux
           arch: gcc_64
-          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport qtconcurrent
+          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport
 
       - name: Install system dependencies
         run: |
@@ -40,6 +64,9 @@ jobs:
             libboost-dev \
             libpolyclipping-dev \
             libquazip1-qt6-dev
+
+      - name: Show toolchain versions
+        run: zig version
 
       - name: Build
         run: |
@@ -52,16 +79,24 @@ jobs:
 
   build-macos:
     name: Build (macOS)
-    runs-on: macos-14
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install Zig
-        run: |
-          curl -fsSL "https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-macos-aarch64-${{ env.ZIG_VERSION }}.tar.xz" | tar xJ
-          echo "$(pwd)/zig-macos-aarch64-${{ env.ZIG_VERSION }}" >> $GITHUB_PATH
+      - name: Cache Zig compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/setup-zig
+          key: zig-${{ env.ZIG_VERSION }}-${{ runner.os }}
+
+      - name: Setup Zig ${{ env.ZIG_VERSION }}
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache: true
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -69,7 +104,7 @@ jobs:
           version: "6.8.*"
           host: mac
           arch: clang_64
-          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport qtconcurrent
+          modules: qtcharts qt5compat qtimageformats qtserialport
 
       - name: Install dependencies (Homebrew)
         run: |
@@ -79,6 +114,9 @@ jobs:
             ngspice \
             quazip
 
+      - name: Show toolchain versions
+        run: zig version
+
       - name: Build
         run: |
           zig build -Doptimize=ReleaseSafe
@@ -86,3 +124,70 @@ jobs:
       - name: Smoke test
         run: |
           file ./zig-out/bin/Fritzing
+
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Zig compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/setup-zig
+          key: zig-${{ env.ZIG_VERSION }}-${{ runner.os }}
+
+      - name: Setup Zig ${{ env.ZIG_VERSION }}
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache: true
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.*"
+          host: windows
+          arch: win64_msvc2022_64
+          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\vcpkg\installed
+            C:\vcpkg\packages
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/.vcpkg') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies (vcpkg)
+        run: |
+          vcpkg install --triplet x64-windows `
+            libgit2 `
+            openssl `
+            boost `
+            polyclipping
+
+      - name: Show toolchain versions
+        run: zig version
+
+      - name: Build
+        run: |
+          zig build -Doptimize=ReleaseSafe
+
+      - name: Smoke test
+        run: |
+          if (Test-Path "zig-out\bin\Fritzing.exe") {
+            Write-Host "Fritzing.exe built successfully"
+            Get-Item "zig-out\bin\Fritzing.exe" | Select-Object Length,FullName
+          } else {
+            Write-Host "Binary not found at expected path"
+            Get-ChildItem -Recurse zig-out -Filter "*.exe" -ErrorAction SilentlyContinue
+          }
