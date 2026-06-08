@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, mod, master]
+  pull_request:
+    branches: [develop, master]
+
+env:
+  ZIG_VERSION: 0.15.0
+
+jobs:
+  build-linux:
+    name: Build (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for git describe/versioning
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.*"
+          host: linux
+          arch: gcc_64
+          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport qtconcurrent
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgit2-dev \
+            libssl-dev \
+            libboost-dev \
+            libpolyclipping-dev \
+            libquazip1-qt6-dev
+
+      - name: Build
+        run: |
+          zig build -Doptimize=ReleaseSafe
+
+      - name: Smoke test
+        run: |
+          ./zig-out/bin/Fritzing --version 2>&1 || true
+          file ./zig-out/bin/Fritzing
+
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.*"
+          host: mac
+          arch: clang_64
+          modules: qtcharts qt5compat qtimageformats qtsvg qtserialport qtconcurrent
+
+      - name: Install dependencies (Homebrew)
+        run: |
+          brew install \
+            libgit2 \
+            boost \
+            ngspice \
+            quazip
+
+      - name: Build
+        run: |
+          zig build -Doptimize=ReleaseSafe
+
+      - name: Smoke test
+        run: |
+          file ./zig-out/bin/Fritzing

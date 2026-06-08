@@ -8,6 +8,7 @@ phoenix.pro.user
 /phoenix-build-*
 /release*
 /build*
+!build.zig
 /debug*
 *.user
 *.user*
@@ -64,3 +65,7 @@ saved_state
 *.qm
 index
 /.qtc_clangd/compile_commands.json
+
+
+# Zig
+.zig-cache/
