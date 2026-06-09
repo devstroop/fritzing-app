@@ -151,12 +151,13 @@ jobs:
           cache: true
 
       - name: Install Qt
-        shell: pwsh
-        run: |
-          vcpkg install --triplet x64-windows qt6-base qt6-svg qt6-serialport
-          $env:VCPKG_DIR = "C:\vcpkg\installed\x64-windows"
-          echo "QT_DIR=$env:VCPKG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "$env:VCPKG_DIR\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          arch: 'win64_msvc2022_64'
+          modules: qtsvg qtserialport
+          cache: true
+          install-deps: false
 
       - name: Cache vcpkg packages
         uses: actions/cache@v4
@@ -179,7 +180,6 @@ jobs:
       - name: Show toolchain versions
         run: |
           zig version
-          pkg-config --modversion Qt6Core 2>nul || echo "Qt6Core version unknown"
 
       - name: Build
         run: |

@@ -527,15 +527,29 @@ fn discoverQt(b: *std.Build, qt_dir: ?[]const u8) struct { []const u8, []const u
         defer if (result.stderr.len > 0) b.allocator.free(result.stderr);
         if (result.term.Exited == 0) {
             const prefix = std.mem.trim(u8, result.stdout, " \n\r");
-            return .{
-                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "include" }) catch @panic("OOM"),
-                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "lib" }) catch @panic("OOM"),
-                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "bin" }) catch @panic("OOM"),
-            };
+            const inc_dir = qtQuery(b, qmake, "QT_INSTALL_HEADERS") orelse
+                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "include" }) catch @panic("OOM");
+            const lib_dir = qtQuery(b, qmake, "QT_INSTALL_LIBS") orelse
+                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "lib" }) catch @panic("OOM");
+            const bin_dir = qtQuery(b, qmake, "QT_INSTALL_BINS") orelse
+                std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "bin" }) catch @panic("OOM");
+            return .{ inc_dir, lib_dir, bin_dir };
         }
     }
 
     @panic("Qt not found. Install Qt 6.5 or pass --qt-dir=<path>");
+}
+
+fn qtQuery(b: *std.Build, qmake: []const u8, prop: []const u8) ?[]const u8 {
+    const result = std.process.Child.run(.{
+        .allocator = b.allocator,
+        .argv = &[_][]const u8{ qmake, "-query", prop },
+    }) catch return null;
+    defer b.allocator.free(result.stdout);
+    defer if (result.stderr.len > 0) b.allocator.free(result.stderr);
+    if (result.term.Exited != 0) return null;
+    const val = std.mem.trim(u8, result.stdout, " \n\r");
+    return if (val.len == 0) null else b.allocator.dupe(u8, val) catch @panic("OOM");
 }
 
 fn runCmd(b: *std.Build, argv: anytype) ?[]const u8 {
