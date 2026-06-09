@@ -668,6 +668,37 @@ pub fn build(b: *std.Build) void {
         cxx_count += 1;
     }
 
+    // macOS: Qt is installed as frameworks.  The `-F` flag adds framework
+    // search paths; this is required for umbrella headers (e.g. <QString>)
+    // whose inner includes (e.g. <QtCore/qstring.h>) are resolved relative
+    // to the framework's Headers directory by Clang's framework-aware logic.
+    // Must come before cxx_flags so the flags are included in compilation.
+    if (target_os == .macos) {
+        cxx_buf[cxx_count] = b.fmt("-F{s}", .{qt_lib_dir});
+        cxx_count += 1;
+        if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
+            cxx_buf[cxx_count] = b.fmt("-F/opt/homebrew/lib");
+            cxx_count += 1;
+        }
+    }
+
+    // Linux: multi-arch quazip fallback.  Distro packages install headers
+    // under /usr/include/<arch>/qt6/QuaZip-Qt6-1.4/ ; probe the common
+    // architectures and add a `-I` flag so they are reachable.
+    // Must come before cxx_flags so the flags are included in compilation.
+    if (target_os == .linux) {
+        const multi_arch_quazip = &[_][]const u8{
+            "/usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4",
+            "/usr/include/aarch64-linux-gnu/qt6/QuaZip-Qt6-1.4",
+        };
+        for (multi_arch_quazip) |p| {
+            if (std.fs.accessAbsolute(p, .{})) |_| {
+                cxx_buf[cxx_count] = b.fmt("-I{s}", .{p});
+                cxx_count += 1;
+            } else |_| {}
+        }
+    }
+
     // NOTE: -stdlib flags are deliberately omitted.  Zig 0.15.2's Clang
     // driver rejects them ("argument unused") because Zig manages the C++
     // runtime library internally.  Zig's bundled libc++ is used by default.
@@ -680,27 +711,6 @@ pub fn build(b: *std.Build) void {
         mod.addIncludePath(lp(b, b.fmt("{s}/{s}", .{ qt_include_dir, qt_mod })));
     }
 
-    // macOS: Qt headers live inside .framework/Headers/.  The umbrella
-    // headers (e.g. <QLabel>) are found via -F framework search, but
-    // their inner includes (e.g. <QtWidgets/qlabel.h>) need the framework
-    // Headers dir on the include path.
-    // Use cxx_buf (compiler flags) rather than mod.addIncludePath because
-    // the latter may not propagate correctly to forwarded-macro or
-    // dependency-injected header scanning on macOS.
-    if (target_os == .macos) {
-        for (qt_modules) |qt_mod| {
-            cxx_buf[cxx_count] = b.fmt("-I{s}/{s}.framework/Headers", .{ qt_lib_dir, qt_mod });
-            cxx_count += 1;
-        }
-        // Homebrew may symlink frameworks to /opt/homebrew/lib; try it too.
-        if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
-            for (qt_modules) |qt_mod| {
-                cxx_buf[cxx_count] = b.fmt("-I/opt/homebrew/lib/{s}.framework/Headers", .{ qt_mod });
-                cxx_count += 1;
-            }
-        }
-    }
-
     mod.addIncludePath(lp(b, "."));
     mod.addIncludePath(lp(b, "src"));
     mod.addIncludePath(lp(b, "src/dialogs"));
@@ -708,20 +718,6 @@ pub fn build(b: *std.Build) void {
 
     if (ngspice_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
     if (quazip_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/QuaZip-Qt6-1.4", .{d})));
-    // Linux: multi-arch distro packages install quazip headers under
-    // /usr/include/<arch>/qt6/QuaZip-Qt6-1.4/ ; add a fallback so
-    // the CI symlink or any other mechanism does not break.
-    if (target_os == .linux) {
-        const multi_arch_quazip = &[_][]const u8{
-            "/usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4",
-            "/usr/include/aarch64-linux-gnu/qt6/QuaZip-Qt6-1.4",
-        };
-        for (multi_arch_quazip) |p| {
-            if (std.fs.accessAbsolute(p, .{})) |_| {
-                mod.addIncludePath(.{ .cwd_relative = p });
-            } else |_| {}
-        }
-    }
     if (svgpp_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
     if (clipper_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/polyclipping", .{d})));
     if (libgit2_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
