@@ -801,7 +801,10 @@ pub fn build(b: *std.Build) void {
         mod.linkSystemLibrary("z", .{});
     }
 
-    if (openssl_dir) |d| mod.addLibraryPath(lp(b, b.fmt("{s}/lib64", .{d})));
+    if (openssl_dir) |d| {
+        const lib = if (target_os == .linux) "lib64" else "lib";
+        mod.addLibraryPath(lp(b, b.fmt("{s}/{s}", .{ d, lib })));
+    }
     mod.linkSystemLibrary("ssl", .{});
     mod.linkSystemLibrary("crypto", .{});
 

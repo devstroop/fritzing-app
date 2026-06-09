@@ -187,8 +187,12 @@ jobs:
         run: |
           vcpkg install --triplet x64-windows `
             libgit2 `
-            openssl `
             polyclipping
+
+      - name: Install OpenSSL (prebuilt, avoid hours-long source build)
+        run: |
+          choco install openssl --no-progress -y --limit-output
+          echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Boost headers (no compilation needed)
         shell: pwsh
