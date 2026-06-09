@@ -685,6 +685,26 @@ pub fn build(b: *std.Build) void {
     if (boost_dir) |d| mod.addIncludePath(lp(b, d));
     if (openssl_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
 
+    // ── C++ Standard Library Headers (Linux) ────────────────────────────
+    // Zig's bundled Clang doesn't always auto-detect the system's C++
+    // standard library headers. Search for them explicitly.
+    if (target_os == .linux) {
+        const cxx_versions = [_][]const u8{ "14", "13", "12", "11", "10" };
+        for (cxx_versions) |ver| {
+            const dir = std.fs.path.join(b.allocator, &[_][]const u8{ "/usr/include/c++", ver }) catch continue;
+            if (std.fs.accessAbsolute(dir, .{})) |_| {
+                mod.addIncludePath(lp(b, dir));
+                const arch_dir = std.fs.path.join(b.allocator, &[_][]const u8{
+                    "/usr/include/x86_64-linux-gnu/c++", ver,
+                }) catch continue;
+                if (std.fs.accessAbsolute(arch_dir, .{})) |_| {
+                    mod.addIncludePath(lp(b, arch_dir));
+                }
+                break;
+            } else |_| {}
+        }
+    }
+
     // ── Qt Toolchain: MOC ─────────────────────────────────────────────────
     // Run moc on each Q_OBJECT header and add the generated .cpp as a source.
     for (moc_headers) |hdr| {
@@ -736,6 +756,8 @@ pub fn build(b: *std.Build) void {
     mod.addCSourceFile(.{ .file = lp(b, "src/zlibdummy.c"), .flags = &.{} });
 
     // ── Library Linking ───────────────────────────────────────────────────
+    exe.linkLibCpp();
+
     const qt_libs = [_][]const u8{
         "Qt6Core",    "Qt6Gui",          "Qt6Widgets",    "Qt6Concurrent",
         "Qt6Network", "Qt6PrintSupport", "Qt6SerialPort", "Qt6Sql",
