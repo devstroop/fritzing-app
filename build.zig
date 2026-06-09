@@ -600,44 +600,55 @@ pub fn build(b: *std.Build) void {
 
     var cxx_buf: [32][]const u8 = undefined;
     var cxx_count: usize = 0;
-    cxx_buf[cxx_count] = "-std=c++17"; cxx_count += 1;
-    cxx_buf[cxx_count] = "-fno-omit-frame-pointer"; cxx_count += 1;
-    cxx_buf[cxx_count] = "-O3"; cxx_count += 1;
+    cxx_buf[cxx_count] = "-std=c++17";
+    cxx_count += 1;
+    cxx_buf[cxx_count] = "-fno-omit-frame-pointer";
+    cxx_count += 1;
+    cxx_buf[cxx_count] = "-O3";
+    cxx_count += 1;
 
     if (target_os == .linux) {
         if (target_arch == .x86_64) {
-            cxx_buf[cxx_count] = "-DLINUX_64"; cxx_count += 1;
+            cxx_buf[cxx_count] = "-DLINUX_64";
+            cxx_count += 1;
         } else {
-            cxx_buf[cxx_count] = "-DLINUX_32"; cxx_count += 1;
+            cxx_buf[cxx_count] = "-DLINUX_32";
+            cxx_count += 1;
         }
     } else if (target_os == .windows) {
-        cxx_buf[cxx_count] = "-D_CRT_SECURE_NO_DEPRECATE"; cxx_count += 1;
-        cxx_buf[cxx_count] = "-D_WINDOWS"; cxx_count += 1;
+        cxx_buf[cxx_count] = "-D_CRT_SECURE_NO_DEPRECATE";
+        cxx_count += 1;
+        cxx_buf[cxx_count] = "-D_WINDOWS";
+        cxx_count += 1;
         if (target_arch == .x86_64) {
-            cxx_buf[cxx_count] = "-DWIN64"; cxx_count += 1;
+            cxx_buf[cxx_count] = "-DWIN64";
+            cxx_count += 1;
         }
     }
 
-    cxx_buf[cxx_count] = "-DDATADIR=\"/usr/share\""; cxx_count += 1;
-    cxx_buf[cxx_count] = "-DPKGDATADIR=\"/usr/share/fritzing\""; cxx_count += 1;
+    cxx_buf[cxx_count] = "-DDATADIR=\"/usr/share\"";
+    cxx_count += 1;
+    cxx_buf[cxx_count] = "-DPKGDATADIR=\"/usr/share/fritzing\"";
+    cxx_count += 1;
 
     if (runCmd(b, &[_][]const u8{ "git", "describe", "--tags" })) |v| {
-        cxx_buf[cxx_count] = b.fmt("-DGIT_VERSION=\"{s}\"", .{v}); cxx_count += 1;
+        cxx_buf[cxx_count] = b.fmt("-DGIT_VERSION=\"{s}\"", .{v});
+        cxx_count += 1;
     }
     if (runCmd(b, &[_][]const u8{ "git", "show", "--no-patch", "--no-notes", "--pretty=%cd", "HEAD", "--date=iso-strict" })) |d| {
-        cxx_buf[cxx_count] = b.fmt("-DGIT_DATE=\"{s}\"", .{d}); cxx_count += 1;
+        cxx_buf[cxx_count] = b.fmt("-DGIT_DATE=\"{s}\"", .{d});
+        cxx_count += 1;
     }
     if (runCmd(b, &[_][]const u8{ "date", "--iso-8601=seconds" })) |d| {
-        cxx_buf[cxx_count] = b.fmt("-DBUILD_DATE=\"{s}\"", .{d}); cxx_count += 1;
+        cxx_buf[cxx_count] = b.fmt("-DBUILD_DATE=\"{s}\"", .{d});
+        cxx_count += 1;
     }
 
     const cxx_flags = cxx_buf[0..cxx_count];
 
     // ── Include Paths ─────────────────────────────────────────────────────
     mod.addIncludePath(lp(b, qt_include_dir));
-    for ([_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork",
-          "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml",
-          "QtSvgWidgets", "QtOpenGLWidgets" }) |qt_mod| {
+    for ([_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork", "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml", "QtSvgWidgets", "QtOpenGLWidgets" }) |qt_mod| {
         mod.addIncludePath(lp(b, b.fmt("{s}/{s}", .{ qt_include_dir, qt_mod })));
     }
 
@@ -702,9 +713,9 @@ pub fn build(b: *std.Build) void {
 
     // ── Library Linking ───────────────────────────────────────────────────
     const qt_libs = [_][]const u8{
-        "Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Concurrent",
+        "Qt6Core",    "Qt6Gui",          "Qt6Widgets",    "Qt6Concurrent",
         "Qt6Network", "Qt6PrintSupport", "Qt6SerialPort", "Qt6Sql",
-        "Qt6Svg", "Qt6Xml", "Qt6SvgWidgets", "Qt6OpenGLWidgets",
+        "Qt6Svg",     "Qt6Xml",          "Qt6SvgWidgets", "Qt6OpenGLWidgets",
     };
     mod.addLibraryPath(lp(b, qt_lib_dir));
     for (qt_libs) |lib| mod.linkSystemLibrary(lib, .{});

@@ -33,8 +33,9 @@ jobs:
 
       - name: Install Qt
         run: |
-          pip install aqtinstall
-          aqt install-qt linux desktop 6.7.3 gcc_64 --outputdir ${{ runner.temp }}/Qt --modules qtsvg qtserialport
+          pip install "aqtinstall==3.1.15"
+          aqt install-qt linux desktop 6.7.3 gcc_64 --outputdir ${{ runner.temp }}/Qt
+          aqt install-qt linux desktop 6.7.3 gcc_64 --outputdir ${{ runner.temp }}/Qt -m qtsvg qtserialport
           echo "${{ runner.temp }}/Qt/6.7.3/gcc_64/bin" >> $GITHUB_PATH
           echo "QT_DIR=${{ runner.temp }}/Qt/6.7.3/gcc_64" >> $GITHUB_ENV
 
@@ -94,8 +95,9 @@ jobs:
 
       - name: Install Qt
         run: |
-          pip install aqtinstall
-          aqt install-qt mac desktop 6.7.3 clang_64 --outputdir ${{ runner.temp }}/Qt --modules qtsvg qtserialport
+          pip install "aqtinstall==3.1.15"
+          aqt install-qt mac desktop 6.7.3 clang_64 --outputdir ${{ runner.temp }}/Qt
+          aqt install-qt mac desktop 6.7.3 clang_64 --outputdir ${{ runner.temp }}/Qt -m qtsvg qtserialport
           echo "${{ runner.temp }}/Qt/6.7.3/clang_64/bin" >> $GITHUB_PATH
           echo "QT_DIR=${{ runner.temp }}/Qt/6.7.3/clang_64" >> $GITHUB_ENV
 
@@ -157,8 +159,9 @@ jobs:
       - name: Install Qt
         shell: pwsh
         run: |
-          pip install aqtinstall
-          aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt --modules qtsvg qtserialport
+          pip install "aqtinstall==3.1.15"
+          aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt
+          aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt -m qtsvg qtserialport
           echo "${{ runner.temp }}\Qt\6.7.3\win64_msvc2022_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
           echo "QT_DIR=${{ runner.temp }}\Qt\6.7.3\win64_msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
 
