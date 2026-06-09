@@ -72,7 +72,11 @@ jobs:
             git clone --depth 1 https://github.com/svgpp/svgpp.git /tmp/svgpp
             sudo mkdir -p /usr/local/include
             sudo cp -r /tmp/svgpp/include/svgpp /usr/local/include/
+            echo "SVGPP_DIR=/usr/local" >> "$GITHUB_ENV"
+          else
+            echo "SVGPP_DIR=/usr" >> "$GITHUB_ENV"
           fi
+          echo "CLIPPER_DIR=/usr" >> "$GITHUB_ENV"
           # QuaZip headers live under the multi-arch qt6 dir; make them
           # discoverable via the simpler path that build.zig expects.
           if [ -d /usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4 ]; then
@@ -128,7 +132,8 @@ jobs:
             libgit2 \
             boost \
             ngspice \
-            quazip
+            quazip \
+            qt5compat
 
       - name: Build polyclipping (Clipper)
         run: |
@@ -139,6 +144,14 @@ jobs:
           sudo cp libpolyclipping.a /opt/homebrew/lib/
           sudo mkdir -p /opt/homebrew/include/polyclipping
           sudo cp clipper.hpp /opt/homebrew/include/polyclipping/
+          echo "CLIPPER_DIR=/opt/homebrew" >> "$GITHUB_ENV"
+
+      - name: Install svgpp headers
+        run: |
+          git clone --depth 1 https://github.com/svgpp/svgpp.git /tmp/svgpp
+          sudo mkdir -p /opt/homebrew/include
+          sudo cp -r /tmp/svgpp/include/svgpp /opt/homebrew/include/
+          echo "SVGPP_DIR=/opt/homebrew" >> "$GITHUB_ENV"
 
       - name: Show toolchain versions
         run: |

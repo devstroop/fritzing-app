@@ -273,16 +273,14 @@ void ItemBase::initNames() {
 	QSettings settings;
 	QString colorName = settings.value("ConnectedColor").toString();
 	if (!colorName.isEmpty()) {
-		QColor color;
-		color.setNamedColor(colorName);
+		QColor color = QColor::fromString(colorName);
 		setConnectedColor(color);
 	}
 
 	colorName = settings.value("UnconnectedColor").toString();
 	if (!colorName.isEmpty()) {
-		QColor color;
-		color.setNamedColor(colorName);
-		setUnconnectedColor(color);
+		QColor color2 = QColor::fromString(colorName);
+		setUnconnectedColor(color2);
 	}
 
 }
@@ -1427,7 +1425,10 @@ FSvgRenderer * ItemBase::setUpImage(ModelPart * modelPart, LayerAttributes & lay
 		// only one layer, just load it directly
 		if (flipDoc.isNull()) {
 			QFile file(filename);
-			file.open(QFile::ReadOnly);
+			if (!file.open(QFile::ReadOnly)) {
+				DebugDialog::debug(QString("Unable to open :%1").arg(filename));
+				return nullptr;
+			}
 			bytesToLoad = file.readAll();
 		}
 		else {
@@ -2006,7 +2007,7 @@ void ItemBase::debugInfo2(const QString & msg) const
 	                   .arg(this->instanceTitle())
 	                   .arg(this->viewLayerID())
 	                   .arg(this->viewLayerPlacement())
-	                   .arg(this->wireFlags())
+	                   .arg(static_cast<int>(this->wireFlags()))
 			   .arg((long) dynamic_cast<const QGraphicsItem *>(this), 0, 16)
 	                   .arg(m_viewID)
 	                   .arg(this->zValue())
@@ -2409,11 +2410,8 @@ void ItemBase::createShape(LayerAttributes & layerAttributes) {
 
 	if (!isEverVisible()) return;
 
-	QString errorStr;
-	int errorLine;
-	int errorColumn;
 	QDomDocument doc;
-	if (!doc.setContent(layerAttributes.loaded(), &errorStr, &errorLine, &errorColumn)) {
+	if (!doc.setContent(layerAttributes.loaded())) {
 		return;
 	}
 

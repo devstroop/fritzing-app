@@ -80,7 +80,7 @@ const QString TextUtils::AdobeIllustratorIdentifier = "Generator: Adobe Illustra
 
 QList<QString> PowerPrefixes;
 QList<double> PowerPrefixValues;
-const QString TextUtils::PowerPrefixesString = QString("pnmkMGTu\\x%1").arg(MicroSymbolCode, 4, 16, QChar('0'));
+const QString TextUtils::PowerPrefixesString = QString("pnmkMGTu\\x%1").arg(static_cast<int>(MicroSymbolCode), 4, 16, QChar('0'));
 
 typedef QHash<QString /*brokenFont*/, QString /*replacementFont*/> FixedFontsHash;
 
@@ -763,7 +763,7 @@ QString TextUtils::convertExtendedChars(const QString & str)
 			result.append(c);
 		}
 		else {
-			result.append(QString("&#x%1;").arg(c.unicode(), 0, 16));
+			result.append(QString("&#x%1;").arg(static_cast<uint>(c.unicode()), 0, 16));
 		}
 	}
 
@@ -811,7 +811,7 @@ bool TextUtils::addCopper1(const QString & filename, QDomDocument & domDocument,
 	int errorLine;
 	int errorColumn;
 	QFile file(filename);
-	file.open(QIODevice::ReadOnly);
+	if (!file.open(QIODevice::ReadOnly)) return false;
 	bool result = domDocument.setContent(&file, &errorStr, &errorLine, &errorColumn);
 	if (!result) {
 		domDocument.clear();			// probably redundant
@@ -1718,7 +1718,7 @@ struct MatchThing
 QString TextUtils::incrementTemplate(const QString & filename, int pins, double increment, MultiplyPinFunction multiFun, CopyPinFunction copyFun, void * userData)
 {
 	QFile file(filename);
-	file.open(QFile::ReadOnly);
+	if (!file.open(QFile::ReadOnly)) return {};
 	QString templateString = file.readAll();
 	file.close();
 

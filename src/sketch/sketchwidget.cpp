@@ -1384,7 +1384,7 @@ long SketchWidget::createWire(ConnectorItem * from, ConnectorItem * to,
 	                   .arg(newID)
 	                   .arg(fromPos.x()).arg(fromPos.y())
 	                   .arg(toPos.x()).arg(toPos.y())
-	                   .arg(wireFlags)
+	                   .arg(static_cast<int>(wireFlags))
 	                   .arg(from->attachedToTitle()).arg(from->connectorSharedID())
 	                   .arg(to->attachedToTitle()).arg(to->connectorSharedID())
 	                   .arg(m_viewID)
@@ -1750,11 +1750,8 @@ QByteArray SketchWidget::removeOutsideConnections(const QByteArray & itemData, Q
 	// now have to remove each connection that points to a part outside of the set of parts being copied
 
 	QDomDocument domDocument;
-	QString errorStr;
-	int errorLine;
-	int errorColumn;
-	bool result = domDocument.setContent(itemData, &errorStr, &errorLine, &errorColumn);
-	if (!result) return ___emptyByteArray___;
+	auto parseResult = domDocument.setContent(itemData);
+	if (!parseResult) return ___emptyByteArray___;
 
 	QDomElement root = domDocument.documentElement();
 	if (root.isNull()) {
@@ -7718,11 +7715,8 @@ void SketchWidget::processTextElementsInSVG(QString &svg, ItemBase *itemBase, Re
 	}
 
 	QDomDocument doc;
-	QString errorStr;
-	int errorLine;
-	int errorColumn;
 
-	if (!doc.setContent(svg, &errorStr, &errorLine, &errorColumn)) {
+	if (!doc.setContent(svg)) {
 		return;
 	}
 
@@ -7855,10 +7849,7 @@ QString SketchWidget::renderToSVG(RenderThing & renderThing, QList<QGraphicsItem
 
 			QString legSvg;
 			QDomDocument doc;
-			QString errorStr;
-			int errorLine;
-			int errorColumn;
-			if (doc.setContent(itemSvg, &errorStr, &errorLine, &errorColumn)) {
+			if (doc.setContent(itemSvg)) {
 				bool changed = false;
 				if (renderThing.renderBlocker) {
 					Pad * pad = qobject_cast<Pad *>(itemBase);
@@ -8472,8 +8463,7 @@ void SketchWidget::initBackgroundColor() {
 	QSettings settings;
 	QString colorName = settings.value(QString("%1BackgroundColor").arg(getShortName())).toString();
 	if (!colorName.isEmpty()) {
-		QColor color;
-		color.setNamedColor(colorName);
+		QColor color = QColor::fromString(colorName);
 		setBackground(color);
 	}
 

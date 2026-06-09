@@ -630,6 +630,8 @@ pub fn build(b: *std.Build) void {
     // Zig's Clang; treat as non-fatal.
     cxx_buf[cxx_count] = "-Wno-deprecated-literal-operator";
     cxx_count += 1;
+    cxx_buf[cxx_count] = "-Wno-deprecated-declarations";
+    cxx_count += 1;
 
     if (target_os == .linux) {
         if (target_arch == .x86_64) {
@@ -668,17 +670,27 @@ pub fn build(b: *std.Build) void {
         cxx_count += 1;
     }
 
-    // macOS: Qt is installed as frameworks.  The `-F` flag adds framework
-    // search paths; this is required for umbrella headers (e.g. <QString>)
-    // whose inner includes (e.g. <QtCore/qstring.h>) are resolved relative
-    // to the framework's Headers directory by Clang's framework-aware logic.
-    // Must come before cxx_flags so the flags are included in compilation.
+    // macOS: Qt is installed as frameworks.  Zig's bundled Clang (vanilla
+    // Clang, not Apple Clang) does not automatically search framework
+    // Headers directories when processing umbrella includes.  Add explicit
+    // `-I` paths to each framework's Headers directory so that umbrella
+    // headers (e.g. <QFrame>) and their inner includes (e.g.
+    // <QtWidgets/qframe.h>) can both be resolved.
     if (target_os == .macos) {
-        cxx_buf[cxx_count] = b.fmt("-F{s}", .{qt_lib_dir});
-        cxx_count += 1;
-        if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
-            cxx_buf[cxx_count] = b.fmt("-F/opt/homebrew/lib", .{});
+        const qt_fw_names = [_][]const u8{
+            "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork",
+            "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml",
+            "QtSvgWidgets", "QtOpenGLWidgets", "QtOpenGL", "QtCore5Compat",
+        };
+        for (qt_fw_names) |fw| {
+            cxx_buf[cxx_count] = b.fmt("-I{s}/{s}.framework/Headers", .{ qt_lib_dir, fw });
             cxx_count += 1;
+        }
+        if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
+            for (qt_fw_names) |fw| {
+                cxx_buf[cxx_count] = b.fmt("-I/opt/homebrew/lib/{s}.framework/Headers", .{ fw });
+                cxx_count += 1;
+            }
         }
     }
 
@@ -699,14 +711,11 @@ pub fn build(b: *std.Build) void {
         }
     }
 
-    // NOTE: -stdlib flags are deliberately omitted.  Zig 0.15.2's Clang
-    // driver rejects them ("argument unused") because Zig manages the C++
-    // runtime library internally.  Zig's bundled libc++ is used by default.
     const cxx_flags = cxx_buf[0..cxx_count];
 
     // ── Include Paths ─────────────────────────────────────────────────────
     mod.addIncludePath(lp(b, qt_include_dir));
-    const qt_modules = [_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork", "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml", "QtSvgWidgets", "QtOpenGLWidgets" };
+    const qt_modules = [_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork", "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml", "QtSvgWidgets", "QtOpenGLWidgets", "QtOpenGL", "QtCore5Compat" };
     for (qt_modules) |qt_mod| {
         mod.addIncludePath(lp(b, b.fmt("{s}/{s}", .{ qt_include_dir, qt_mod })));
     }
@@ -717,7 +726,28 @@ pub fn build(b: *std.Build) void {
     mod.addIncludePath(lp(b, "src/ipc"));
 
     if (ngspice_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
-    if (quazip_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/QuaZip-Qt6-1.4", .{d})));
+    if (quazip_dir) |d| {
+        const inc = b.fmt("{s}/include", .{d});
+        // QuaZip-Qt6 version dir varies across distros (1.4, 1.7.1, …).
+        // Try an explicit dir first; fall back to scanning subdirs.
+        const explicit = b.fmt("{s}/QuaZip-Qt6-1.4", .{inc});
+        if (std.fs.accessAbsolute(explicit, .{})) |_| {
+            mod.addIncludePath(lp(b, explicit));
+        } else |_| {
+            if (std.fs.openDirAbsolute(inc, .{})) |qd| {
+                var sd = qd;
+                defer sd.close();
+                var scan_it = sd.iterate();
+                while (scan_it.next() catch null) |entry| {
+                    if (std.mem.startsWith(u8, entry.name, "QuaZip-Qt6-")) {
+                        mod.addIncludePath(.{ .cwd_relative = b.fmt("{s}/{s}", .{ inc, entry.name }) });
+                        break;
+                    }
+                }
+            } else |_| {}
+
+        }
+    }
     if (svgpp_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
     if (clipper_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/polyclipping", .{d})));
     if (libgit2_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
@@ -805,27 +835,61 @@ pub fn build(b: *std.Build) void {
     });
 
     // zlibdummy.c is a plain C file — cannot use -std=c++17
-    mod.addCSourceFile(.{ .file = lp(b, "src/zlibdummy.c"), .flags = &.{} });
+    // NOTE: zlibdummy.c omitted; zlib is linked via system lib below.
 
     // ── Library Linking ───────────────────────────────────────────────────
-    const qt_libs = [_][]const u8{
-        "Qt6Core",    "Qt6Gui",          "Qt6Widgets",    "Qt6Concurrent",
-        "Qt6Network", "Qt6PrintSupport", "Qt6SerialPort", "Qt6Sql",
-        "Qt6Svg",     "Qt6Xml",          "Qt6SvgWidgets", "Qt6OpenGLWidgets",
+    // Qt module names (without the "6" prefix used on Linux/Windows).
+    const qt_frameworks = [_][]const u8{
+        "Core", "Gui", "Widgets", "Concurrent", "Network", "PrintSupport",
+        "SerialPort", "Sql", "Svg", "Xml", "SvgWidgets", "OpenGLWidgets",
+        "OpenGL", "Core5Compat",
     };
-    mod.addLibraryPath(lp(b, qt_lib_dir));
-    for (qt_libs) |lib| mod.linkSystemLibrary(lib, .{});
-
-    if (target_os == .linux or target_os == .macos) {
-        mod.linkSystemLibrary("z", .{});
+    if (target_os == .macos) {
+        // macOS: Qt is installed as frameworks.  Use linkFramework to
+        // emit -framework <name> and add the framework search dir.
+        mod.addFrameworkPath(lp(b, qt_lib_dir));
+        for (qt_frameworks) |mod_name| mod.linkFramework(b.fmt("Qt{s}", .{mod_name}), .{});
+    } else {
+        mod.addLibraryPath(lp(b, qt_lib_dir));
+        for (qt_frameworks) |mod_name| mod.linkSystemLibrary(b.fmt("Qt6{s}", .{mod_name}), .{});
     }
 
-    if (openssl_dir) |d| {
+    // NOTE: zlib linked via the system SDK — do not add explicit link
+    // here as it creates a "duplicate linked dylib" on macOS 15+.
+
+    // On macOS, link ssl + crypto via full paths to avoid duplicate
+    // LC_RPATH (Zig 0.15.1 adds one rpath per linkSystemLibrary call,
+    // even when the libraries are in the same directory, causing a
+    // hard runtime error on macOS 15+).
+    if (target_os == .macos) {
+        const ossl_dir = if (openssl_dir) |d|
+            b.fmt("{s}/lib", .{d})
+        else
+            "/opt/homebrew/lib";
+        const ssl_path = b.fmt("{s}/libssl.dylib", .{ossl_dir});
+        // Inline exists check (std.fs.accessAbsolute can't be used in
+        // an expression context here).
+        const have_ssl = blk: {
+            if (std.fs.accessAbsolute(ssl_path, .{})) {
+                break :blk true;
+            } else |_| {
+                break :blk false;
+            }
+        };
+        if (have_ssl) {
+            mod.addObjectFile(.{ .cwd_relative = ssl_path });
+            mod.addObjectFile(.{ .cwd_relative = b.fmt("{s}/libcrypto.dylib", .{ossl_dir}) });
+            mod.addRPath(lp(b, ossl_dir));
+        }
+    } else if (openssl_dir) |d| {
         const lib = if (target_os == .linux) "lib64" else "lib";
         mod.addLibraryPath(lp(b, b.fmt("{s}/{s}", .{ d, lib })));
+        mod.linkSystemLibrary("ssl", .{});
+        mod.linkSystemLibrary("crypto", .{});
+    } else {
+        mod.linkSystemLibrary("ssl", .{});
+        mod.linkSystemLibrary("crypto", .{});
     }
-    mod.linkSystemLibrary("ssl", .{});
-    mod.linkSystemLibrary("crypto", .{});
 
     if (libgit2_dir) |d| mod.addLibraryPath(lp(b, b.fmt("{s}/lib", .{d})));
     mod.linkSystemLibrary("git2", .{});
@@ -845,6 +909,11 @@ pub fn build(b: *std.Build) void {
         mod.linkFramework("Carbon", .{});
         mod.linkFramework("IOKit", .{});
         mod.linkSystemLibrary("iconv", .{});
+        // Direct link to system libc++ via its .tbd stub (avoids pulling in
+        // the Xcode SDK's C++ headers which are incompatible with Zig's Clang).
+        if (runCmd(b, &.{ "xcrun", "--show-sdk-path" })) |sdk| {
+            mod.addObjectFile(.{ .cwd_relative = b.fmt("{s}/usr/lib/libc++.tbd", .{sdk}) });
+        }
     }
 
     // ── RPATH for shared libs (Linux) ─────────────────────────────────────

@@ -196,17 +196,14 @@ QString Resistor::makeSvg(const QString & resistance, ViewLayer::ViewLayerID vie
 
 	QString tolerance = prop("tolerance");
 
-	QString errorStr;
-	int errorLine;
-	int errorColumn;
 	QDomDocument domDocument;
 	QString fn = (viewLayerID == ViewLayer::Breadboard) ? m_breadboardSvgFile : m_iconSvgFile;
 	QFile file(fn);
 	if (!file.open(QIODevice::ReadOnly)) {
 		DebugDialog::debug(QString("Unable to open :%1").arg(fn));
 	}
-	if (!domDocument.setContent(&file, &errorStr, &errorLine, &errorColumn)) {
-		DebugDialog::debug(QString("makesvg failed %1 %2 %3").arg(errorStr).arg(errorLine).arg(errorColumn));
+	if (!domDocument.setContent(&file)) {
+		DebugDialog::debug(QString("makesvg failed %1").arg(fn));
 		return "";
 	}
 
@@ -260,7 +257,7 @@ bool Resistor::collectExtraInfo(QWidget * parent, const QString & family, const 
 		validator->setSymbol(OhmSymbol);
 		validator->setConverter(TextUtils::convertFromPowerPrefix);
 		validator->setBounds(MIN_RESISTANCE, MAX_RESISTANCE);
-		validator->setRegularExpression(QRegularExpression(QString("((\\d{1,10})|(\\d{1,10}\\.)|(\\d{1,10}\\.\\d{1,5}))[\\x%1umkMG]{0,1}[\\x03A9]{0,1}").arg(TextUtils::MicroSymbolCode, 4, 16, QChar('0'))));
+		validator->setRegularExpression(QRegularExpression(QString("((\\d{1,10})|(\\d{1,10}\\.)|(\\d{1,10}\\.\\d{1,5}))[\\x%1umkMG]{0,1}[\\x03A9]{0,1}").arg(static_cast<int>(TextUtils::MicroSymbolCode), 4, 16, QChar('0'))));
 		focusOutComboBox->setValidator(validator);
 		connect(focusOutComboBox->validator(), SIGNAL(sendState(QValidator::State)), this, SLOT(textModified(QValidator::State)));
 		connect(focusOutComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(resistanceEntry(int)));
