@@ -105,8 +105,7 @@ jobs:
       - name: Install Qt
         run: |
           brew install qt@6
-          # Add Qt bin to PATH so zig build can find qmake/qmake6
-          # (do NOT set QT_DIR — let qmake -query discover real paths)
+          echo "QT_DIR=$(brew --prefix qt@6)" >> $GITHUB_ENV
           echo "$(brew --prefix qt@6)/bin" >> $GITHUB_PATH
 
       - name: Install dependencies (Homebrew)

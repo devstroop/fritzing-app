@@ -685,25 +685,40 @@ pub fn build(b: *std.Build) void {
     if (boost_dir) |d| mod.addIncludePath(lp(b, d));
     if (openssl_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
 
-    // ── C++ Standard Library Headers (Linux) ────────────────────────────
-    // Zig's bundled Clang sometimes doesn't auto-detect the system's C++
-    // headers. Add them as explicit compiler flags.
+    // ── C++ Standard Library Headers ─────────────────────────────────────
+    // Zig's bundled Clang may not find the C++ stdlib headers automatically.
+    // Add them as module include paths so they apply to both source and
+    // header scanning. Also set -stdlib to match the system's C++ library.
     if (target_os == .linux) {
-        const cxx_versions = [_][]const u8{ "14", "13", "12", "11", "10" };
-        for (cxx_versions) |ver| {
+        const gcc_vers = [_][]const u8{ "14", "13", "12", "11", "10" };
+        for (gcc_vers) |ver| {
             const dir = std.fs.path.join(b.allocator, &[_][]const u8{ "/usr/include/c++", ver }) catch continue;
             if (std.fs.accessAbsolute(dir, .{})) |_| {
-                cxx_buf[cxx_count] = b.fmt("-I{s}", .{dir});
-                cxx_count += 1;
+                mod.addIncludePath(.{ .cwd_relative = dir });
                 const arch_dir = std.fs.path.join(b.allocator, &[_][]const u8{
                     "/usr/include/x86_64-linux-gnu/c++", ver,
                 }) catch continue;
                 if (std.fs.accessAbsolute(arch_dir, .{})) |_| {
-                    cxx_buf[cxx_count] = b.fmt("-I{s}", .{arch_dir});
-                    cxx_count += 1;
+                    mod.addIncludePath(.{ .cwd_relative = arch_dir });
                 } else |_| {}
+                cxx_buf[cxx_count] = "-stdlib=libstdc++";
+                cxx_count += 1;
                 break;
             } else |_| {}
+        }
+    } else if (target_os == .macos) {
+        // Apple's libc++ headers are inside the SDK
+        if (runCmd(b, &[_][]const u8{ "xcrun", "--show-sdk-path" })) |sdk| {
+            const cxx_inc = std.fs.path.join(b.allocator, &[_][]const u8{
+                sdk, "usr", "include", "c++", "v1",
+            }) catch {};
+            if (cxx_inc) |p| {
+                if (std.fs.accessAbsolute(p, .{})) |_| {
+                    mod.addIncludePath(.{ .cwd_relative = p });
+                } else |_| {}
+            }
+            cxx_buf[cxx_count] = "-stdlib=libc++";
+            cxx_count += 1;
         }
     }
 
