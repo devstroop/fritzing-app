@@ -729,7 +729,7 @@ pub fn build(b: *std.Build) void {
         if (runCmd(b, &[_][]const u8{ "xcrun", "--show-sdk-path" })) |sdk| {
             const cxx_inc = std.fs.path.join(b.allocator, &[_][]const u8{
                 sdk, "usr", "include", "c++", "v1",
-            }) catch {};
+            }) catch null;
             if (cxx_inc) |p| {
                 if (std.fs.accessAbsolute(p, .{})) |_| {
                     mod.addIncludePath(.{ .cwd_relative = p });
