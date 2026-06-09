@@ -706,7 +706,8 @@ pub fn build(b: *std.Build) void {
             "/usr/include",
         };
         for (probes) |base| {
-            if (std.fs.openDirAbsolute(base, .{ .iterate = true })) |dir| {
+            if (std.fs.openDirAbsolute(base, .{ .iterate = true })) |d| {
+                var dir = d;
                 defer dir.close();
                 var it = dir.iterate();
                 while (it.next() catch null) |entry| {
