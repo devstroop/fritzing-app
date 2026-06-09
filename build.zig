@@ -655,10 +655,10 @@ pub fn build(b: *std.Build) void {
     cxx_buf[cxx_count] = "-DPKGDATADIR=\"/usr/share/fritzing\"";
     cxx_count += 1;
 
-    if (runCmd(b, &[_][]const u8{ "git", "describe", "--tags" })) |v| {
-        cxx_buf[cxx_count] = b.fmt("-DGIT_VERSION=\"{s}\"", .{v});
-        cxx_count += 1;
-    }
+    const git_version = runCmd(b, &[_][]const u8{ "git", "describe", "--tags" }) orelse
+        runCmd(b, &[_][]const u8{ "git", "rev-parse", "--short", "HEAD" }) orelse "unknown";
+    cxx_buf[cxx_count] = b.fmt("-DGIT_VERSION=\"{s}\"", .{git_version});
+    cxx_count += 1;
     if (runCmd(b, &[_][]const u8{ "git", "show", "--no-patch", "--no-notes", "--pretty=%cd", "HEAD", "--date=iso-strict" })) |d| {
         cxx_buf[cxx_count] = b.fmt("-DGIT_DATE=\"{s}\"", .{d});
         cxx_count += 1;
@@ -687,6 +687,12 @@ pub fn build(b: *std.Build) void {
     if (target_os == .macos) {
         for (qt_modules) |qt_mod| {
             mod.addIncludePath(lp(b, b.fmt("{s}/{s}.framework/Headers", .{ qt_lib_dir, qt_mod })));
+        }
+        // Homebrew may symlink frameworks to /opt/homebrew/lib; try it too.
+        if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
+            for (qt_modules) |qt_mod| {
+                mod.addIncludePath(lp(b, b.fmt("/opt/homebrew/lib/{s}.framework/Headers", .{ qt_mod })));
+            }
         }
     }
 

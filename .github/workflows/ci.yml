@@ -65,7 +65,20 @@ jobs:
             libssl-dev \
             libboost-dev \
             libpolyclipping-dev \
-            libquazip1-qt6-dev
+            libquazip1-qt6-dev \
+            libsvgpp-dev || true
+          # If libsvgpp-dev is not available, download headers manually
+          if ! dpkg -l libsvgpp-dev &>/dev/null; then
+            git clone --depth 1 https://github.com/svgpp/svgpp.git /tmp/svgpp
+            sudo mkdir -p /usr/local/include
+            sudo cp -r /tmp/svgpp/include/svgpp /usr/local/include/
+          fi
+          # QuaZip headers live under the multi-arch qt6 dir; make them
+          # discoverable via the simpler path that build.zig expects.
+          if [ -d /usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4 ]; then
+            sudo ln -sf /usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4 /usr/include/QuaZip-Qt6-1.4
+            echo "QUAZIP_DIR=/usr" >> "$GITHUB_ENV"
+          fi
 
       - name: Show toolchain versions
         run: |
@@ -131,6 +144,14 @@ jobs:
         run: |
           zig version
           pkg-config --modversion Qt6Core 2>/dev/null || echo "Qt6Core version unknown"
+          if command -v qmake6 &>/dev/null; then
+            echo "--- qmake6 paths ---"
+            qmake6 -query QT_INSTALL_PREFIX
+            qmake6 -query QT_INSTALL_HEADERS
+            qmake6 -query QT_INSTALL_LIBS
+            qmake6 -query QT_INSTALL_BINS
+            qmake6 -query QT_INSTALL_LIBEXECS
+          fi
 
       - name: Build
         run: |
@@ -148,7 +169,7 @@ jobs:
       run:
         shell: pwsh
     env:
-      VCPKG_BINARY_SOURCES: "files,C:\vcpkg-binary-cache,readwrite"
+      VCPKG_BINARY_SOURCES: "clear;files,C:\vcpkg-binary-cache,readwrite"
     steps:
       - uses: actions/checkout@v4
         with:
