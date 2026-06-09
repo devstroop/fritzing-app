@@ -694,19 +694,27 @@ pub fn build(b: *std.Build) void {
         }
     }
 
-    // Linux: multi-arch quazip fallback.  Distro packages install headers
-    // under /usr/include/<arch>/qt6/QuaZip-Qt6-1.4/ ; probe the common
-    // architectures and add a `-I` flag so they are reachable.
+    // Linux: quazip header location varies.  Distro packages may use
+    // multi-arch paths like /usr/include/<arch>/qt6/QuaZip-Qt6-<ver>/
+    // or direct paths like /usr/include/QuaZip-Qt6-<ver>/.  Probe the
+    // common variants and add `-I` flags so they are reachable.
     // Must come before cxx_flags so the flags are included in compilation.
     if (target_os == .linux) {
-        const multi_arch_quazip = &[_][]const u8{
-            "/usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4",
-            "/usr/include/aarch64-linux-gnu/qt6/QuaZip-Qt6-1.4",
+        const probes = &[_][]const u8{
+            "/usr/include/x86_64-linux-gnu/qt6",
+            "/usr/include/aarch64-linux-gnu/qt6",
+            "/usr/include",
         };
-        for (multi_arch_quazip) |p| {
-            if (std.fs.accessAbsolute(p, .{})) |_| {
-                cxx_buf[cxx_count] = b.fmt("-I{s}", .{p});
-                cxx_count += 1;
+        for (probes) |base| {
+            if (std.fs.openDirAbsolute(base, .{ .iterate = true })) |dir| {
+                defer dir.close();
+                var it = dir.iterate();
+                while (it.next() catch null) |entry| {
+                    if (std.mem.startsWith(u8, entry.name, "QuaZip-Qt6-")) {
+                        cxx_buf[cxx_count] = b.fmt("-I{s}/{s}", .{ base, entry.name });
+                        cxx_count += 1;
+                    }
+                }
             } else |_| {}
         }
     }

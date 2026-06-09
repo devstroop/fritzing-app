@@ -77,11 +77,13 @@ jobs:
             echo "SVGPP_DIR=/usr" >> "$GITHUB_ENV"
           fi
           echo "CLIPPER_DIR=/usr" >> "$GITHUB_ENV"
-          # QuaZip headers live under the multi-arch qt6 dir; make them
-          # discoverable via the simpler path that build.zig expects.
+          # QuaZip-Qt6 headers are either in multi-arch or single-arch dir.
+          # Set QUAZIP_DIR so build.zig can discover the version subdir.
+          echo "QUAZIP_DIR=/usr" >> "$GITHUB_ENV"
+          # Only need a symlink for the multi-arch case (single-arch is
+          # already at /usr/include/QuaZip-Qt6-1.4/).
           if [ -d /usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4 ]; then
             sudo ln -sf /usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4 /usr/include/QuaZip-Qt6-1.4
-            echo "QUAZIP_DIR=/usr" >> "$GITHUB_ENV"
           fi
 
       - name: Show toolchain versions
@@ -151,6 +153,7 @@ jobs:
           git clone --depth 1 https://github.com/svgpp/svgpp.git /tmp/svgpp
           sudo mkdir -p /opt/homebrew/include
           sudo cp -r /tmp/svgpp/include/svgpp /opt/homebrew/include/
+          sudo cp -r /tmp/svgpp/include/exboost /opt/homebrew/include/
           echo "SVGPP_DIR=/opt/homebrew" >> "$GITHUB_ENV"
 
       - name: Show toolchain versions
@@ -205,7 +208,7 @@ jobs:
         with:
           version: '6.8.3'
           arch: 'win64_msvc2022_64'
-          modules: qtserialport
+          modules: qtserialport qt5compat
           cache: true
           install-deps: false
 
@@ -229,21 +232,31 @@ jobs:
         run: |
           vcpkg install --triplet x64-windows `
             libgit2 `
-            openssl `
-            polyclipping
+            openssl
           $vcpkg = "C:\vcpkg\installed\x64-windows"
           echo "LIBGIT2_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CLIPPER_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "OPENSSL_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           # vcpkg names OpenSSL libs libssl-3-x64.lib / libcrypto-3-x64.lib,
-          # but Zig's linkSystemLibrary("ssl") looks for libssl.lib / ssl.lib.
+          # but Zig's linkSystemLibrary("ssl") looks for ssl.lib (MSVC).
           # Create standard-named copies so Zig can find them.
           if (Test-Path "$vcpkg\lib\libssl-3-x64.lib") {
-            Copy-Item "$vcpkg\lib\libssl-3-x64.lib" "$vcpkg\lib\libssl.lib"
+            Copy-Item "$vcpkg\lib\libssl-3-x64.lib" "$vcpkg\lib\ssl.lib"
           }
           if (Test-Path "$vcpkg\lib\libcrypto-3-x64.lib") {
-            Copy-Item "$vcpkg\lib\libcrypto-3-x64.lib" "$vcpkg\lib\libcrypto.lib"
+            Copy-Item "$vcpkg\lib\libcrypto-3-x64.lib" "$vcpkg\lib\crypto.lib"
           }
+
+      - name: Build and install polyclipping
+        run: |
+          git clone --depth 1 https://github.com/tamasmeszaros/libpolyclipping.git C:\polyclipping
+          cd C:\polyclipping
+          cl /O2 /c clipper.cpp /Foclipper.obj
+          lib clipper.obj /OUT:libpolyclipping.lib
+          $vcpkg = "C:\vcpkg\installed\x64-windows"
+          Copy-Item libpolyclipping.lib "$vcpkg\lib\"
+          New-Item -ItemType Directory -Force -Path "$vcpkg\include\polyclipping"
+          Copy-Item clipper.hpp "$vcpkg\include\polyclipping\"
+          echo "CLIPPER_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Boost headers (no compilation needed)
         shell: pwsh
