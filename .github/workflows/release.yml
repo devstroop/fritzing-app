@@ -101,7 +101,8 @@ jobs:
       - name: Install Qt
         run: |
           brew install qt@6
-          echo "QT_DIR=$(brew --prefix qt@6)" >> $GITHUB_ENV
+          # Do NOT set QT_DIR — let qmake -query discover real paths.
+          # Just add bin to PATH so moc/uic/rcc are findable.
           echo "$(brew --prefix qt@6)/bin" >> $GITHUB_PATH
 
       - name: Install dependencies (Homebrew)
