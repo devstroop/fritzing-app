@@ -677,7 +677,7 @@ pub fn build(b: *std.Build) void {
         cxx_buf[cxx_count] = b.fmt("-F{s}", .{qt_lib_dir});
         cxx_count += 1;
         if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
-            cxx_buf[cxx_count] = b.fmt("-F/opt/homebrew/lib");
+            cxx_buf[cxx_count] = b.fmt("-F/opt/homebrew/lib", .{});
             cxx_count += 1;
         }
     }
