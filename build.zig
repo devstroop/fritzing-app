@@ -664,12 +664,32 @@ pub fn build(b: *std.Build) void {
         cxx_count += 1;
     }
 
+    // -stdlib must be set before cxx_flags is sliced below
+    if (target_os == .linux) {
+        cxx_buf[cxx_count] = "-stdlib=libstdc++";
+        cxx_count += 1;
+    } else if (target_os == .macos) {
+        cxx_buf[cxx_count] = "-stdlib=libc++";
+        cxx_count += 1;
+    }
+
     const cxx_flags = cxx_buf[0..cxx_count];
 
     // ── Include Paths ─────────────────────────────────────────────────────
     mod.addIncludePath(lp(b, qt_include_dir));
-    for ([_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork", "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml", "QtSvgWidgets", "QtOpenGLWidgets" }) |qt_mod| {
+    const qt_modules = [_][]const u8{ "QtCore", "QtGui", "QtWidgets", "QtConcurrent", "QtNetwork", "QtPrintSupport", "QtSerialPort", "QtSql", "QtSvg", "QtXml", "QtSvgWidgets", "QtOpenGLWidgets" };
+    for (qt_modules) |qt_mod| {
         mod.addIncludePath(lp(b, b.fmt("{s}/{s}", .{ qt_include_dir, qt_mod })));
+    }
+
+    // macOS: Qt headers live inside .framework/Headers/.  The umbrella
+    // headers (e.g. <QLabel>) are found via -F framework search, but
+    // their inner includes (e.g. <QtWidgets/qlabel.h>) need the framework
+    // Headers dir on the include path.
+    if (target_os == .macos) {
+        for (qt_modules) |qt_mod| {
+            mod.addIncludePath(lp(b, b.fmt("{s}/{s}.framework/Headers", .{ qt_lib_dir, qt_mod })));
+        }
     }
 
     mod.addIncludePath(lp(b, "."));
@@ -701,8 +721,6 @@ pub fn build(b: *std.Build) void {
                 if (std.fs.accessAbsolute(arch_dir, .{})) |_| {
                     mod.addIncludePath(.{ .cwd_relative = arch_dir });
                 } else |_| {}
-                cxx_buf[cxx_count] = "-stdlib=libstdc++";
-                cxx_count += 1;
                 break;
             } else |_| {}
         }
@@ -717,8 +735,6 @@ pub fn build(b: *std.Build) void {
                     mod.addIncludePath(.{ .cwd_relative = p });
                 } else |_| {}
             }
-            cxx_buf[cxx_count] = "-stdlib=libc++";
-            cxx_count += 1;
         }
     }
 

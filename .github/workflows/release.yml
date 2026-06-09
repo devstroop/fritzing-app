@@ -187,7 +187,7 @@ jobs:
             C:\vcpkg\installed
             C:\vcpkg\downloads
             C:\vcpkg\packages
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/release.yml') }}
+          key: vcpkg-${{ runner.os }}-20260609
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
