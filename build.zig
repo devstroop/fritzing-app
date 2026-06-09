@@ -664,15 +664,9 @@ pub fn build(b: *std.Build) void {
         cxx_count += 1;
     }
 
-    // -stdlib must be set before cxx_flags is sliced below
-    if (target_os == .linux) {
-        cxx_buf[cxx_count] = "-stdlib=libstdc++";
-        cxx_count += 1;
-    } else if (target_os == .macos) {
-        cxx_buf[cxx_count] = "-stdlib=libc++";
-        cxx_count += 1;
-    }
-
+    // NOTE: -stdlib flags are deliberately omitted.  Zig 0.15.2's Clang
+    // driver rejects them ("argument unused") because Zig manages the C++
+    // runtime library internally.  Zig's bundled libc++ is used by default.
     const cxx_flags = cxx_buf[0..cxx_count];
 
     // ── Include Paths ─────────────────────────────────────────────────────

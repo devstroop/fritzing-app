@@ -189,11 +189,17 @@ jobs:
           vcpkg install --triplet x64-windows `
             libgit2 `
             polyclipping
+          $vcpkg = "C:\vcpkg\installed\x64-windows"
+          echo "LIBGIT2_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CLIPPER_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install OpenSSL (prebuilt, avoid hours-long source build)
         run: |
-          choco install openssl --no-progress -y --limit-output
-          echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $url = "https://slproweb.com/download/Win64OpenSSL-3_3_2.exe"
+          $installer = "$env:RUNNER_TEMP\Win64OpenSSL.exe"
+          Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+          Start-Process -Wait -FilePath $installer -ArgumentList "/S", "/D=C:\OpenSSL-Win64"
+          echo "OPENSSL_DIR=C:\OpenSSL-Win64" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Boost headers (no compilation needed)
         shell: pwsh
