@@ -45,7 +45,7 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache: true
+          use-cache: true
 
       - name: Install Qt
         run: |
@@ -119,7 +119,7 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache: true
+          use-cache: true
 
       - name: Install Qt
         run: |
@@ -201,7 +201,7 @@ jobs:
         uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache: true
+          use-cache: true
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
