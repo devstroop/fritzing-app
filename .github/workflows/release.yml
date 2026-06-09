@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             qt6-base-dev \
+            qt6-base-dev-tools \
             libqt6svg6-dev \
             libqt6serialport6-dev
 
@@ -163,7 +164,7 @@ jobs:
         with:
           version: '6.8.3'
           arch: 'win64_msvc2022_64'
-          modules: qtsvg qtserialport
+          modules: qtserialport
           cache: true
           install-deps: false
 

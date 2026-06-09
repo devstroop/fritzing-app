@@ -500,21 +500,27 @@ fn uiOutputName(ui_path: []const u8) []const u8 {
     return std.fmt.allocPrint(std.heap.page_allocator, "ui_{s}.h", .{no_ext}) catch @panic("OOM");
 }
 
-fn findQtTool(b: *std.Build, qt_bin_dir: []const u8, tool: []const u8) []const u8 {
-    const path = std.fs.path.join(b.allocator, &[_][]const u8{ qt_bin_dir, tool }) catch @panic("OOM");
-    if (std.fs.accessAbsolute(path, .{})) |_| {
-        return path;
-    } else |_| {
-        return b.allocator.dupe(u8, tool) catch @panic("OOM");
-    }
+fn findQtTool(b: *std.Build, qt_bin_dir: []const u8, qt_libexec_dir: []const u8, tool: []const u8) []const u8 {
+    // Internal Qt tools (moc, uic, rcc) may live in a libexec directory.
+    // Check libexec first, then bin, then fall back to bare name (PATH).
+    const libexec_path = std.fs.path.join(b.allocator, &[_][]const u8{ qt_libexec_dir, tool }) catch @panic("OOM");
+    if (std.fs.accessAbsolute(libexec_path, .{})) |_| {
+        return libexec_path;
+    } else |_| {}
+    const bin_path = std.fs.path.join(b.allocator, &[_][]const u8{ qt_bin_dir, tool }) catch @panic("OOM");
+    if (std.fs.accessAbsolute(bin_path, .{})) |_| {
+        return bin_path;
+    } else |_| {}
+    return b.allocator.dupe(u8, tool) catch @panic("OOM");
 }
 
-fn discoverQt(b: *std.Build, qt_dir: ?[]const u8) struct { []const u8, []const u8, []const u8 } {
+fn discoverQt(b: *std.Build, qt_dir: ?[]const u8) struct { []const u8, []const u8, []const u8, []const u8 } {
     if (qt_dir) |dir| {
         return .{
             std.fs.path.join(b.allocator, &[_][]const u8{ dir, "include" }) catch @panic("OOM"),
             std.fs.path.join(b.allocator, &[_][]const u8{ dir, "lib" }) catch @panic("OOM"),
             std.fs.path.join(b.allocator, &[_][]const u8{ dir, "bin" }) catch @panic("OOM"),
+            std.fs.path.join(b.allocator, &[_][]const u8{ dir, "libexec" }) catch @panic("OOM"),
         };
     }
 
@@ -533,7 +539,8 @@ fn discoverQt(b: *std.Build, qt_dir: ?[]const u8) struct { []const u8, []const u
                 std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "lib" }) catch @panic("OOM");
             const bin_dir = qtQuery(b, qmake, "QT_INSTALL_BINS") orelse
                 std.fs.path.join(b.allocator, &[_][]const u8{ prefix, "bin" }) catch @panic("OOM");
-            return .{ inc_dir, lib_dir, bin_dir };
+            const libexec_dir = qtQuery(b, qmake, "QT_INSTALL_LIBEXECS") orelse bin_dir;
+            return .{ inc_dir, lib_dir, bin_dir, libexec_dir };
         }
     }
 
@@ -582,11 +589,11 @@ pub fn build(b: *std.Build) void {
     // ── Qt Discovery ──────────────────────────────────────────────────────
     const qt_dir = b.option([]const u8, "qt-dir", "Path to Qt installation") orelse
         std.process.getEnvVarOwned(b.allocator, "QT_DIR") catch null;
-    const qt_include_dir, const qt_lib_dir, const qt_bin_dir = discoverQt(b, qt_dir);
+    const qt_include_dir, const qt_lib_dir, const qt_bin_dir, const qt_libexec_dir = discoverQt(b, qt_dir);
 
-    const moc_path = findQtTool(b, qt_bin_dir, "moc");
-    const uic_path = findQtTool(b, qt_bin_dir, "uic");
-    const rcc_path = findQtTool(b, qt_bin_dir, "rcc");
+    const moc_path = findQtTool(b, qt_bin_dir, qt_libexec_dir, "moc");
+    const uic_path = findQtTool(b, qt_bin_dir, qt_libexec_dir, "uic");
+    const rcc_path = findQtTool(b, qt_bin_dir, qt_libexec_dir, "rcc");
 
     // ── External Dependency Paths ─────────────────────────────────────────
     const ngspice_dir = b.option([]const u8, "ngspice-dir", "Path to ngspice-42") orelse
