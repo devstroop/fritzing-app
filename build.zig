@@ -863,6 +863,14 @@ pub fn build(b: *std.Build) void {
         for (qt_frameworks) |mod_name| mod.linkSystemLibrary(b.fmt("Qt6{s}", .{mod_name}), .{});
     }
 
+    // Linux: Zig 0.15.2 does not automatically link the C++ runtime
+    // (libstdc++).  All C++ stdlib symbols (operator new, std::string,
+    // iostream, exceptions, RTTI, etc.) become undefined at link time
+    // without this explicit link.
+    if (target_os == .linux) {
+        mod.linkSystemLibrary("stdc++", .{});
+    }
+
     // NOTE: zlib linked via the system SDK — do not add explicit link
     // here as it creates a "duplicate linked dylib" on macOS 15+.
 
