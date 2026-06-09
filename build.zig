@@ -684,14 +684,19 @@ pub fn build(b: *std.Build) void {
     // headers (e.g. <QLabel>) are found via -F framework search, but
     // their inner includes (e.g. <QtWidgets/qlabel.h>) need the framework
     // Headers dir on the include path.
+    // Use cxx_buf (compiler flags) rather than mod.addIncludePath because
+    // the latter may not propagate correctly to forwarded-macro or
+    // dependency-injected header scanning on macOS.
     if (target_os == .macos) {
         for (qt_modules) |qt_mod| {
-            mod.addIncludePath(lp(b, b.fmt("{s}/{s}.framework/Headers", .{ qt_lib_dir, qt_mod })));
+            cxx_buf[cxx_count] = b.fmt("-I{s}/{s}.framework/Headers", .{ qt_lib_dir, qt_mod });
+            cxx_count += 1;
         }
         // Homebrew may symlink frameworks to /opt/homebrew/lib; try it too.
         if (!std.mem.eql(u8, qt_lib_dir, "/opt/homebrew/lib")) {
             for (qt_modules) |qt_mod| {
-                mod.addIncludePath(lp(b, b.fmt("/opt/homebrew/lib/{s}.framework/Headers", .{ qt_mod })));
+                cxx_buf[cxx_count] = b.fmt("-I/opt/homebrew/lib/{s}.framework/Headers", .{ qt_mod });
+                cxx_count += 1;
             }
         }
     }
@@ -703,6 +708,20 @@ pub fn build(b: *std.Build) void {
 
     if (ngspice_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
     if (quazip_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/QuaZip-Qt6-1.4", .{d})));
+    // Linux: multi-arch distro packages install quazip headers under
+    // /usr/include/<arch>/qt6/QuaZip-Qt6-1.4/ ; add a fallback so
+    // the CI symlink or any other mechanism does not break.
+    if (target_os == .linux) {
+        const multi_arch_quazip = &[_][]const u8{
+            "/usr/include/x86_64-linux-gnu/qt6/QuaZip-Qt6-1.4",
+            "/usr/include/aarch64-linux-gnu/qt6/QuaZip-Qt6-1.4",
+        };
+        for (multi_arch_quazip) |p| {
+            if (std.fs.accessAbsolute(p, .{})) |_| {
+                mod.addIncludePath(.{ .cwd_relative = p });
+            } else |_| {}
+        }
+    }
     if (svgpp_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
     if (clipper_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include/polyclipping", .{d})));
     if (libgit2_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));

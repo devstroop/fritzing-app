@@ -169,7 +169,7 @@ jobs:
       run:
         shell: pwsh
     env:
-      VCPKG_BINARY_SOURCES: "clear;files,C:\vcpkg-binary-cache,readwrite"
+      VCPKG_BINARY_SOURCES: 'clear;files,C:\vcpkg-binary-cache,readwrite'
     steps:
       - uses: actions/checkout@v4
         with:
