@@ -84,6 +84,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 #include <QTemporaryFile>
 #include <QDir>
 #include <QMetaType>
+#include <QSslSocket>
 
 #ifdef LINUX_32
 #define PLATFORM_NAME "linux-32bit"

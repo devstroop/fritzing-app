@@ -43,6 +43,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 #include <QStyleOption>
 #include <QStyle>
 #include <QApplication>
+#include <QSslSocket>
 
 ////////////////////////////////////////////////////////////
 

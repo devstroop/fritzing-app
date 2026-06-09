@@ -59,6 +59,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 #include <QPushButton>
 #include <QMessageBox>
 #include <QNetworkAccessManager>
+#include <QSslSocket>
 #include <QInputDialog>
 
 
