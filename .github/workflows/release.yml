@@ -151,10 +151,12 @@ jobs:
   build-windows:
     name: Release (Windows)
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 60
     defaults:
       run:
         shell: pwsh
+    env:
+      VCPKG_BINARY_SOURCES: "files,C:\vcpkg-binary-cache,readwrite"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -181,6 +183,10 @@ jobs:
           cache: true
           install-deps: false
 
+      - name: Create vcpkg binary cache directory
+        run: |
+          New-Item -ItemType Directory -Path C:\vcpkg-binary-cache -Force
+
       - name: Cache vcpkg packages
         uses: actions/cache@v4
         with:
@@ -188,6 +194,7 @@ jobs:
             C:\vcpkg\installed
             C:\vcpkg\downloads
             C:\vcpkg\packages
+            C:\vcpkg-binary-cache
           key: vcpkg-${{ runner.os }}-20260609
           restore-keys: |
             vcpkg-${{ runner.os }}-
@@ -196,18 +203,12 @@ jobs:
         run: |
           vcpkg install --triplet x64-windows `
             libgit2 `
+            openssl `
             polyclipping
           $vcpkg = "C:\vcpkg\installed\x64-windows"
           echo "LIBGIT2_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "CLIPPER_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Install OpenSSL (prebuilt, avoid hours-long source build)
-        run: |
-          $url = "https://slproweb.com/download/Win64OpenSSL-3_3_2.exe"
-          $installer = "$env:RUNNER_TEMP\Win64OpenSSL.exe"
-          Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
-          Start-Process -Wait -FilePath $installer -ArgumentList "/S", "/D=C:\OpenSSL-Win64"
-          echo "OPENSSL_DIR=C:\OpenSSL-Win64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_DIR=$vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Boost headers (no compilation needed)
         shell: pwsh
