@@ -908,6 +908,7 @@ ModelPart * ModelBase::createOldSchematicPartAux(ModelPart * modelPart, const QS
 		DebugDialog::debug(QString("Unable to open :%1").arg(path));
 	}
 	QDomDocument oldDoc;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 	QDomDocument::ParseResult parseResult = oldDoc.setContent(&newFzp);
 	if (!parseResult.operator bool()) {
 		QString logMessage = QString("Parse Error: %1 at line %2, column %3 in %4")
@@ -918,6 +919,20 @@ ModelPart * ModelBase::createOldSchematicPartAux(ModelPart * modelPart, const QS
 		DebugDialog::debug(logMessage);
 		return nullptr;
 	}
+#else
+	QString errorMsg;
+	int errorLine = 0;
+	int errorColumn = 0;
+	if (!oldDoc.setContent(&newFzp, &errorMsg, &errorLine, &errorColumn)) {
+		QString logMessage = QString("Parse Error: %1 at line %2, column %3 in %4")
+								 .arg(errorMsg)
+								 .arg(errorLine)
+								 .arg(errorColumn)
+								 .arg(path);
+		DebugDialog::debug(logMessage);
+		return nullptr;
+	}
+#endif
 
 	QDomElement root = oldDoc.documentElement();
 	root.setAttribute("moduleId", oldModuleIDRef);

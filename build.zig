@@ -626,6 +626,10 @@ pub fn build(b: *std.Build) void {
     cxx_count += 1;
     cxx_buf[cxx_count] = "-O3";
     cxx_count += 1;
+    // Qt 6.5+ headers trigger -Wdeprecated-literal-operator with
+    // Zig's Clang; treat as non-fatal.
+    cxx_buf[cxx_count] = "-Wno-deprecated-literal-operator";
+    cxx_count += 1;
 
     if (target_os == .linux) {
         if (target_arch == .x86_64) {

@@ -1,4 +1,5 @@
 #include "floaderror.h"
+#include <QtCore/QStringBuilder>
 
 using namespace Qt::Literals::StringLiterals;
 
