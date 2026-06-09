@@ -33,11 +33,11 @@ jobs:
 
       - name: Install Qt
         run: |
-          pip install "aqtinstall==3.1.15"
-          aqt install-qt linux desktop 6.7.3 gcc_64 --outputdir ${{ runner.temp }}/Qt
-          aqt install-qt linux desktop 6.7.3 gcc_64 --outputdir ${{ runner.temp }}/Qt -m qtsvg qtserialport
-          echo "${{ runner.temp }}/Qt/6.7.3/gcc_64/bin" >> $GITHUB_PATH
-          echo "QT_DIR=${{ runner.temp }}/Qt/6.7.3/gcc_64" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qt6-base-dev \
+            libqt6svg6-dev \
+            libqt6serialport6-dev
 
       - name: Install system dependencies
         run: |
@@ -50,7 +50,9 @@ jobs:
             libquazip1-qt6-dev
 
       - name: Show toolchain versions
-        run: zig version
+        run: |
+          zig version
+          pkg-config --modversion Qt6Core 2>/dev/null || echo "Qt6Core version unknown"
 
       - name: Build
         run: |
@@ -95,11 +97,9 @@ jobs:
 
       - name: Install Qt
         run: |
-          pip install "aqtinstall==3.1.15"
-          aqt install-qt mac desktop 6.7.3 clang_64 --outputdir ${{ runner.temp }}/Qt
-          aqt install-qt mac desktop 6.7.3 clang_64 --outputdir ${{ runner.temp }}/Qt -m qtsvg qtserialport
-          echo "${{ runner.temp }}/Qt/6.7.3/clang_64/bin" >> $GITHUB_PATH
-          echo "QT_DIR=${{ runner.temp }}/Qt/6.7.3/clang_64" >> $GITHUB_ENV
+          brew install qt@6
+          echo "$(brew --prefix qt@6)/bin" >> $GITHUB_PATH
+          echo "QT_DIR=$(brew --prefix qt@6)" >> $GITHUB_ENV
 
       - name: Install dependencies (Homebrew)
         run: |
@@ -110,7 +110,9 @@ jobs:
             quazip
 
       - name: Show toolchain versions
-        run: zig version
+        run: |
+          zig version
+          pkg-config --modversion Qt6Core 2>/dev/null || echo "Qt6Core version unknown"
 
       - name: Build
         run: |
@@ -159,11 +161,10 @@ jobs:
       - name: Install Qt
         shell: pwsh
         run: |
-          pip install "aqtinstall==3.1.15"
-          aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt
-          aqt install-qt windows desktop 6.7.3 win64_msvc2022_64 --outputdir ${{ runner.temp }}\Qt -m qtsvg qtserialport
-          echo "${{ runner.temp }}\Qt\6.7.3\win64_msvc2022_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-          echo "QT_DIR=${{ runner.temp }}\Qt\6.7.3\win64_msvc2022_64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          vcpkg install --triplet x64-windows qt6-base qt6-svg qt6-serialport
+          $env:VCPKG_DIR = "C:\vcpkg\installed\x64-windows"
+          echo "QT_DIR=$env:VCPKG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "$env:VCPKG_DIR\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Cache vcpkg packages
         uses: actions/cache@v4
