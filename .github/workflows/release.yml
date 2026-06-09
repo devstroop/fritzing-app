@@ -197,8 +197,23 @@ jobs:
           vcpkg install --triplet x64-windows `
             libgit2 `
             openssl `
-            boost `
             polyclipping
+
+      - name: Install Boost headers (no compilation needed)
+        shell: pwsh
+        run: |
+          $boostVer = "1.87.0"
+          $boostRoot = "C:\boost"
+          $boostDir = "$boostRoot\include\boost_$($boostVer.Replace('.', '_'))"
+          if (-not (Test-Path "$boostDir\boost\version.hpp")) {
+            Write-Host "Downloading Boost $boostVer headers..."
+            $url = "https://archives.boost.io/release/$boostVer/source/boost_$($boostVer.Replace('.', '_')).zip"
+            $zip = "$env:RUNNER_TEMP\boost.zip"
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            Expand-Archive -Path $zip -DestinationPath "$boostRoot\include" -Force
+            Write-Host "Boost headers extracted to $boostDir"
+          }
+          echo "BOOST_DIR=$boostDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Show toolchain versions
         run: zig version

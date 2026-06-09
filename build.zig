@@ -685,31 +685,22 @@ pub fn build(b: *std.Build) void {
     if (boost_dir) |d| mod.addIncludePath(lp(b, d));
     if (openssl_dir) |d| mod.addIncludePath(lp(b, b.fmt("{s}/include", .{d})));
 
-    // ── C++ Standard Library Headers ────────────────────────────────────
-    // Zig's bundled Clang sometimes doesn't find the C++ standard library
-    // headers automatically. Add them explicitly.
-    if (b.zig_lib_dir) |zig_lib| {
-        const zig_lib_path = zig_lib.getPath(b);
-        const paths = [_][]const u8{
-            b.pathJoin(&.{ zig_lib_path, "libcxx", "include" }),
-            b.pathJoin(&.{ zig_lib_path, "libcxxabi", "include" }),
-        };
-        for (paths) |p| {
-            if (std.fs.accessAbsolute(p, .{})) |_| {
-                mod.addIncludePath(.{ .cwd_relative = p });
-            } else |_| {}
-        }
-    }
-    // Fallback: system GCC/libstdc++ headers on Linux
+    // ── C++ Standard Library Headers (Linux) ────────────────────────────
+    // Zig's bundled Clang sometimes doesn't auto-detect the system's C++
+    // headers. Add them as explicit compiler flags.
     if (target_os == .linux) {
         const cxx_versions = [_][]const u8{ "14", "13", "12", "11", "10" };
         for (cxx_versions) |ver| {
-            const dir = b.pathJoin(&.{ "/usr/include/c++", ver });
+            const dir = std.fs.path.join(b.allocator, &[_][]const u8{ "/usr/include/c++", ver }) catch continue;
             if (std.fs.accessAbsolute(dir, .{})) |_| {
-                mod.addIncludePath(.{ .cwd_relative = dir });
-                const arch_dir = b.pathJoin(&.{ "/usr/include/x86_64-linux-gnu/c++", ver });
+                cxx_buf[cxx_count] = b.fmt("-I{s}", .{dir});
+                cxx_count += 1;
+                const arch_dir = std.fs.path.join(b.allocator, &[_][]const u8{
+                    "/usr/include/x86_64-linux-gnu/c++", ver,
+                }) catch continue;
                 if (std.fs.accessAbsolute(arch_dir, .{})) |_| {
-                    mod.addIncludePath(.{ .cwd_relative = arch_dir });
+                    cxx_buf[cxx_count] = b.fmt("-I{s}", .{arch_dir});
+                    cxx_count += 1;
                 } else |_| {}
                 break;
             } else |_| {}
