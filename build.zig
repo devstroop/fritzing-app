@@ -277,7 +277,6 @@ const misc_sources = [_][]const u8{
     "src/dock/layerpalette.cpp",
     "src/ipc/ipc_d_356.cpp",
     "test/version/cppversion.cpp",
-    "src/zlibdummy.c",
 };
 
 const all_source_groups = [_][]const []const u8{
@@ -673,6 +672,7 @@ pub fn build(b: *std.Build) void {
         mod.addIncludePath(lp(b, b.fmt("{s}/{s}", .{ qt_include_dir, qt_mod })));
     }
 
+    mod.addIncludePath(lp(b, "."));
     mod.addIncludePath(lp(b, "src"));
     mod.addIncludePath(lp(b, "src/dialogs"));
     mod.addIncludePath(lp(b, "src/ipc"));
@@ -731,6 +731,9 @@ pub fn build(b: *std.Build) void {
         .files = allocSources(b),
         .flags = cxx_flags,
     });
+
+    // zlibdummy.c is a plain C file — cannot use -std=c++17
+    mod.addCSourceFile(.{ .file = lp(b, "src/zlibdummy.c"), .flags = &.{} });
 
     // ── Library Linking ───────────────────────────────────────────────────
     const qt_libs = [_][]const u8{
